@@ -1,0 +1,142 @@
+======================================================================
+ECB CUT-AND-PASTE under AES-128 (key 2b7e151628aed2a6...)
+======================================================================
+Recorded 5 legit ECB wires (attacker sees wires only):
+  R seq=11 GOTO   param='ALT:30' ct B0=053f50d446fc86fc1125e06d..
+  R seq=12 LAND   param=''      ct B0=242754abcc99a1d9e62beeef..
+  R seq=13 DISARM param=''      ct B0=58963f1d4e94fcd6c5248493..
+  R seq=14 RTL    param=''      ct B0=fa2daf41f41c93f9ede24e08..
+  R seq=15 GOTO   param='ALT:500' ct B0=9340a33058d19137c09d59e2..
+Distinct pad blocks B4 across recordings: 1 (identical -- ECB encrypts the same padding to the same bytes every time)
+
+Forgery (a): GCS never sent (15, DISARM, no param)
+    B0 <- R15.header
+    B1 <- R13.cmd
+    B2 <- R13.param
+    B3 <- R13.auth
+    B4 <- R13.pad
+  forged ciphertext (80 bytes):
+      block 0: 9340a33058d19137c09d59e221a957d3
+      block 1: 64e8d00db24300100665bc5da268f386
+      block 2: 2fe941b55269e5527a99b5e2da8f012b
+      block 3: d62595a281707d38417cffdc1c3c6c37
+      block 4: a254be88e037ddd9d79fb6411c3f9df8
+  drone decrypts to: 'DRONE01|SEQ=0015CMD=DISARM......PARAM=..........AUTH=GCS........'
+  drone says: accepted=True reason='ok' parsed={'seq': 15, 'cmd': 'DISARM', 'param': None, 'auth': 'GCS'}
+
+Forgery (b): GCS never sent (15, GOTO, ALT:500)
+    B0 <- R15.header
+    B1 <- R11.cmd
+    B2 <- R15.param
+    B3 <- R11.auth
+    B4 <- R11.pad
+  forged ciphertext (80 bytes):
+      block 0: 9340a33058d19137c09d59e221a957d3
+      block 1: be9f76c7cb7c3d9b7f3e933be0731c7f
+      block 2: 11d46352e88f118acaad14986a8bf26c
+      block 3: d62595a281707d38417cffdc1c3c6c37
+      block 4: a254be88e037ddd9d79fb6411c3f9df8
+  drone decrypts to: 'DRONE01|SEQ=0015CMD=GOTO........PARAM=ALT:500...AUTH=GCS........'
+  drone says: accepted=True reason='ok' parsed={'seq': 15, 'cmd': 'GOTO', 'param': 'ALT:500', 'auth': 'GCS'}
+
+Forgery (c): GCS never sent (15, LAND, no param)
+    B0 <- R15.header
+    B1 <- R12.cmd
+    B2 <- R12.param
+    B3 <- R12.auth
+    B4 <- R12.pad
+  forged ciphertext (80 bytes):
+      block 0: 9340a33058d19137c09d59e221a957d3
+      block 1: 6d75a9cc1e74eee68d4b0050d489db5a
+      block 2: 2fe941b55269e5527a99b5e2da8f012b
+      block 3: d62595a281707d38417cffdc1c3c6c37
+      block 4: a254be88e037ddd9d79fb6411c3f9df8
+  drone decrypts to: 'DRONE01|SEQ=0015CMD=LAND........PARAM=..........AUTH=GCS........'
+  drone says: accepted=True reason='ok' parsed={'seq': 15, 'cmd': 'LAND', 'param': None, 'auth': 'GCS'}
+
+----------------------------------------------------------------------
+SAME splice (forgery a) against CBC wires:
+  forged CBC wire (96 bytes):
+      IV      : 2ec8258aa2d63b7bc53a942fa9f00de0
+      block 0: 21cb0f97af2a22754532e2a0cca1a44f
+      block 1: 945ffa092eeb228ab8f66d5b400ad7f5
+      block 2: 63d098b0ade0756d6cdad704573629d8
+      block 3: ed0a67e3c55898e98d70f2717bb0866d
+      block 4: cdf9e386bb4e8b940e79d97d6b45f23f
+  drone says: accepted=False reason="bad CMD block '�����������\\x12�\\x0b��'" parsed=None
+  WHY IT FAILS: forged B1 is decrypted XOR the WRONG predecessor
+  (R5.B0 instead of R3.B0), so the CMD block is garbage while the
+  header/param/auth blocks survive -- exactly one garbled join,
+  and it lands on a CHECKED block. Chaining saves CBC here.
+
+======================================================================
+ECB CUT-AND-PASTE under AES-256 (key 0001020304050607...)
+======================================================================
+Recorded 5 legit ECB wires (attacker sees wires only):
+  R seq=11 GOTO   param='ALT:30' ct B0=c1de34b4e79c8d179c374418..
+  R seq=12 LAND   param=''      ct B0=845d04d8ba5de7ddee1d5821..
+  R seq=13 DISARM param=''      ct B0=6a2ff2f7d8be5aa663607a7f..
+  R seq=14 RTL    param=''      ct B0=451e001be70b7fb008ae03fb..
+  R seq=15 GOTO   param='ALT:500' ct B0=269be2ea9389f0cd9853cdce..
+Distinct pad blocks B4 across recordings: 1 (identical -- ECB encrypts the same padding to the same bytes every time)
+
+Forgery (a): GCS never sent (15, DISARM, no param)
+    B0 <- R15.header
+    B1 <- R13.cmd
+    B2 <- R13.param
+    B3 <- R13.auth
+    B4 <- R13.pad
+  forged ciphertext (80 bytes):
+      block 0: 269be2ea9389f0cd9853cdcecc2ba520
+      block 1: 8a39972d9e8493423db591b4a55432a9
+      block 2: 7b4fc9c38231e5820e8728128ebc7ce8
+      block 3: 5e4cb736ee96a1e6b08417b2ee189ce3
+      block 4: 9f3b7504926f8bd36e3118e903a4cd4a
+  drone decrypts to: 'DRONE01|SEQ=0015CMD=DISARM......PARAM=..........AUTH=GCS........'
+  drone says: accepted=True reason='ok' parsed={'seq': 15, 'cmd': 'DISARM', 'param': None, 'auth': 'GCS'}
+
+Forgery (b): GCS never sent (15, GOTO, ALT:500)
+    B0 <- R15.header
+    B1 <- R11.cmd
+    B2 <- R15.param
+    B3 <- R11.auth
+    B4 <- R11.pad
+  forged ciphertext (80 bytes):
+      block 0: 269be2ea9389f0cd9853cdcecc2ba520
+      block 1: 1e293f44e754fb8b1fbabe30660a1b25
+      block 2: 8d931a60e25f7cb8fc8a6f5eff2bc6c3
+      block 3: 5e4cb736ee96a1e6b08417b2ee189ce3
+      block 4: 9f3b7504926f8bd36e3118e903a4cd4a
+  drone decrypts to: 'DRONE01|SEQ=0015CMD=GOTO........PARAM=ALT:500...AUTH=GCS........'
+  drone says: accepted=True reason='ok' parsed={'seq': 15, 'cmd': 'GOTO', 'param': 'ALT:500', 'auth': 'GCS'}
+
+Forgery (c): GCS never sent (15, LAND, no param)
+    B0 <- R15.header
+    B1 <- R12.cmd
+    B2 <- R12.param
+    B3 <- R12.auth
+    B4 <- R12.pad
+  forged ciphertext (80 bytes):
+      block 0: 269be2ea9389f0cd9853cdcecc2ba520
+      block 1: 9543d6965e91509c352078fd34370a48
+      block 2: 7b4fc9c38231e5820e8728128ebc7ce8
+      block 3: 5e4cb736ee96a1e6b08417b2ee189ce3
+      block 4: 9f3b7504926f8bd36e3118e903a4cd4a
+  drone decrypts to: 'DRONE01|SEQ=0015CMD=LAND........PARAM=..........AUTH=GCS........'
+  drone says: accepted=True reason='ok' parsed={'seq': 15, 'cmd': 'LAND', 'param': None, 'auth': 'GCS'}
+
+----------------------------------------------------------------------
+SAME splice (forgery a) against CBC wires:
+  forged CBC wire (96 bytes):
+      IV      : 7cf95df3b58701e6412b0f966b79297f
+      block 0: 955640b0ea1d0d1c3e80e75c8260395f
+      block 1: 3a5ec4d68b47247223a72722c3e15e5d
+      block 2: 3bf6c10cd10f9cab81088f07f677d14f
+      block 3: c1181d09c2eb93cb6473213bdfde5474
+      block 4: 63f546b38c8a59fbbb471894770b56d4
+  drone says: accepted=False reason="bad CMD block '3\\x1fZ��A?4/�\\x0cy���\\x10'" parsed=None
+  WHY IT FAILS: forged B1 is decrypted XOR the WRONG predecessor
+  (R5.B0 instead of R3.B0), so the CMD block is garbage while the
+  header/param/auth blocks survive -- exactly one garbled join,
+  and it lands on a CHECKED block. Chaining saves CBC here.
+

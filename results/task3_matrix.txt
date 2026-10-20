@@ -1,0 +1,17 @@
+========================================================================
+TASK 3 ATTACK MATRIX (attacker outcome, computed from live runs)
+Evidence: distinct-block counts below; full attack transcripts in
+results/task3_ecb_cutpaste.txt and results/task3_cbc_bitflip.txt.
+========================================================================
+Mode     | pattern leak | cut-and-paste | IV flip | block flip
+---------+--------------+---------------+---------+-------------
+ECB-128  | SUCCESS      | SUCCESS       | N/A (no IV) | SUCCESS
+ECB-256  | SUCCESS      | SUCCESS       | N/A (no IV) | SUCCESS
+CBC-128  | FAILED       | FAILED        | SUCCESS | SUCCESS
+CBC-256  | FAILED       | FAILED        | SUCCESS | SUCCESS
+========================================================================
+Distinct 16-byte blocks: plain=68 ecb128=69 ecb256=69 cbc128=3073 cbc256=3073
+Reading: ECB leaks patterns and accepts splices at BOTH key
+sizes (longer key fixes nothing); CBC hides patterns and kills
+splices, but stays malleable (IV flip) and forgiving of garbage
+in ignored fields (LAND block flip). Fix = authentication.

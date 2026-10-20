@@ -1,0 +1,55 @@
+========================================================================
+TASK 4 DEMO: Task-3 attacks vs the GCM link (AES-128 shown;
+Task 3 proved key size changes nothing, tests cover AES-256 too)
+Wire = nonce(12) | header(16, CLEAR AAD) | ct(48) | tag(16) = 92B
+========================================================================
+Control: fresh legit seq 13 accepted: True
+
+1. ECB-style splice (header of seq12 + body/tag of seq11):
+   drone says: accepted=False reason='tag check failed: GCM tag mismatch: message rejected'
+2a. Cleartext seq rewrite 0011 -> 0099 (the Task-3 IV trick, now attemptable in the clear):
+   drone says: accepted=False reason='tag check failed: GCM tag mismatch: message rejected'
+2b. One flipped nonce byte on the fresh msg:
+   drone says: accepted=False reason='tag check failed: GCM tag mismatch: message rejected'
+3. LAND body flip (ct PARAM region, Task-3 LAND trick):
+   drone says: accepted=False reason='tag check failed: GCM tag mismatch: message rejected'
+4. Whole-wire replay of seq 11 (already obeyed):
+   drone says: accepted=False reason='stale seq 11 (last obeyed 13)'
+5a. Truncated wire (91 bytes):
+   drone says: accepted=False reason='bad wire length 91 (want 92)'
+5b. Extended wire (108 bytes):
+   drone says: accepted=False reason='bad wire length 108 (want 92)'
+
+Why the LAND flip dies here but lived in Task 3: the tag is
+verified BEFORE parsing, so garbage never reaches the lenient
+parser. CBC had no tag -- its only hope was the parser, and the
+parser was (deliberately) forgiving.
+
+------------------------------------------------------------------------
+Pattern leak, distinct 16-byte blocks (Task-3 numbers remeasured
+live just now for the side-by-side):
+  plain=68 ecb128=69 cbc128=3073 gcm128=3072 (of 3072 blocks)
+  GCM looks like CBC (noise), not ECB (silhouette): no padding in
+  CTR plus a fresh keystream per nonce randomises every block.
+
+------------------------------------------------------------------------
+BONUS -- nonce reuse under one key (misuse warning, not a break):
+  CT1 XOR CT2 == PT1 XOR PT2: True
+  attacker knowing PT1 recovers PT2 exactly: True
+  Same-key/same-nonce also leaks the GHASH key H over time, which
+  is why secure_send() refuses nonce reuse (guard tested in
+  tests/test_link.py). GCM is only as good as its nonces.
+
+========================================================================
+DEFENSE MATRIX (attacker outcome, all cells from live runs)
+Attack          | ECB         | CBC         | GCM
+----------------+-------------+-------------+----------
+pattern leak    | SUCCESS     | FAILED      | FAILED  
+cut-and-paste   | SUCCESS     | FAILED      | FAILED  
+IV/nonce flip   | N/A (no IV) | SUCCESS     | FAILED  
+block flip      | SUCCESS     | SUCCESS     | FAILED  
+replay (stale)  | FAILED      | FAILED      | FAILED  
+========================================================================
+Read: ECB falls to everything; CBC hides patterns and kills
+splices but stays malleable; GCM fails EVERY attack above --
+tampering is caught by the tag, replay by the seq rule.

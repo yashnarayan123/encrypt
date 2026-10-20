@@ -1,0 +1,78 @@
+TASK 5 SUMMARY: performance + security analysis (all numbers measured)
+Machine: x86_64 | OS: Linux 7.2.9-2-cachyos | CPU: 12th Gen Intel(R) Core(TM) i5-12450H | Python 3.14.8
+Sizes timed (bytes): [64, 1024, 16384, 65536]
+
+SPEED (median ms per message | KB/s plaintext throughput):
+  [64 B]
+    ECB-128 enc     0.55 ms     112.7 KB/s | dec     1.53 ms      41.0 KB/s
+    ECB-256 enc     0.71 ms      88.3 KB/s | dec     2.19 ms      28.6 KB/s
+    CBC-128 enc     0.55 ms     112.8 KB/s | dec     1.53 ms      41.0 KB/s
+    CBC-256 enc     0.75 ms      83.6 KB/s | dec     2.15 ms      29.1 KB/s
+    GCM-128 enc     0.73 ms      85.1 KB/s | dec     0.73 ms      85.3 KB/s
+    GCM-256 enc     0.99 ms      62.9 KB/s | dec     1.00 ms      62.7 KB/s
+    REF-128 enc   0.0033 ms   18774.4 KB/s (C/OpenSSL, not our code)
+  [1024 B]
+    ECB-128 enc     6.50 ms     153.8 KB/s | dec    19.54 ms      51.2 KB/s
+    ECB-256 enc     9.44 ms     105.9 KB/s | dec    27.97 ms      35.8 KB/s
+    CBC-128 enc     6.60 ms     151.5 KB/s | dec    19.82 ms      50.5 KB/s
+    CBC-256 enc     9.50 ms     105.2 KB/s | dec    28.68 ms      34.9 KB/s
+    GCM-128 enc     7.96 ms     125.6 KB/s | dec     7.99 ms     125.2 KB/s
+    GCM-256 enc    10.84 ms      92.2 KB/s | dec    10.82 ms      92.4 KB/s
+    REF-128 enc   0.0034 ms  298462.9 KB/s (C/OpenSSL, not our code)
+  [16384 B]
+    ECB-128 enc   103.87 ms     154.0 KB/s | dec   301.86 ms      53.0 KB/s
+    ECB-256 enc   150.85 ms     106.1 KB/s | dec   444.01 ms      36.0 KB/s
+    CBC-128 enc   106.91 ms     149.7 KB/s | dec   315.48 ms      50.7 KB/s
+    CBC-256 enc   152.91 ms     104.6 KB/s | dec   452.71 ms      35.3 KB/s
+    GCM-128 enc   122.93 ms     130.2 KB/s | dec   123.31 ms     129.8 KB/s
+    GCM-256 enc   165.91 ms      96.4 KB/s | dec   165.59 ms      96.6 KB/s
+    REF-128 enc   0.0054 ms 2967359.4 KB/s (C/OpenSSL, not our code)
+  [65536 B]
+    ECB-128 enc   418.26 ms     153.0 KB/s | dec  1255.84 ms      51.0 KB/s
+    ECB-256 enc   599.10 ms     106.8 KB/s | dec  1794.51 ms      35.7 KB/s
+    CBC-128 enc   422.22 ms     151.6 KB/s | dec  1233.19 ms      51.9 KB/s
+    CBC-256 enc   615.54 ms     104.0 KB/s | dec  1761.61 ms      36.3 KB/s
+    GCM-128 enc   500.25 ms     127.9 KB/s | dec   493.05 ms     129.8 KB/s
+    GCM-256 enc   662.47 ms      96.6 KB/s | dec   666.97 ms      96.0 KB/s
+    REF-128 enc   0.0118 ms 5415467.3 KB/s (C/OpenSSL, not our code)
+
+MICRO (single AES block encrypt, keys pre-expanded; key expansion):
+  block-128 101.5 us | block-256 143.0 us | keyexp-128 21.7 us | keyexp-256 28.3 us
+
+KEY-SIZE SENSITIVITY (AES-256 / AES-128 median time at 16 KB):
+  ECB encrypt 1.45x (round-count ratio 14/10 = 1.40)
+  CBC encrypt 1.43x (round-count ratio 14/10 = 1.40)
+  GCM encrypt 1.35x (round-count ratio 14/10 = 1.40)
+  Verdict: matches ~1.4x. Decrypt ratios match too (checked in CSV).
+
+WIRE OVERHEAD for one 64-byte command (measured real wires):
+  ECB: 80 bytes on wire (+16 = +25.0%; 4000 B/s = 32.0 kbit/s at 50 pkt/s)
+  CBC: 96 bytes on wire (+32 = +50.0%; 4800 B/s = 38.4 kbit/s at 50 pkt/s)
+  GCM: 92 bytes on wire (+28 = +43.8%; 4600 B/s = 36.8 kbit/s at 50 pkt/s)
+
+AVALANCHE on our AES (seed 20261015; share should sit near 0.50):
+  AES-128 flip-pt: n=4096 mean=64.01 min=42 max=84 share=0.500
+  AES-128 flip-key: n=4096 mean=63.94 min=46 max=84 share=0.500
+  AES-256 flip-pt: n=4096 mean=63.92 min=43 max=84 share=0.499
+  AES-256 flip-key: n=8192 mean=63.99 min=42 max=83 share=0.500
+  Round growth (AES-128 changed bits after each stage): ['1.0', '18.2', '65.5', '62.5', '63.9', '63.5', '63.1', '65.8', '64.1', '60.4', '60.9']
+  One flipped bit owns ~18 bits after round 1 and the full block
+  from round 2 on -- textbook diffusion. This is a sanity check,
+  NOT a security proof (says nothing about differential/linear or
+  side-channel attacks).
+
+WHAT THIS MEANS (teacher requirements 3 and 4):
+  (3) Performance: pure-Python AES manages ~100 KB/s where the
+  C/OpenSSL reference does millions of KB/s -- absolute numbers
+  suit a laptop demo only; a real drone uses hardware AES. ECB/CBC
+  decrypt costs ~3x encrypt (inverse MixColumns does twice the
+  field multiplications); GCM decrypt costs the same as encrypt
+  (CTR uses forward blocks only). GCM costs about the same as CBC
+  here (CTR + GHASH are cheap next to AES rounds).
+  (4) AES-256 costs ~1.4x AES-128, exactly as the round count says;
+  its brute-force margin (2^256 vs 2^128, both infeasible) is
+  theoretical. It does NOT fix mode flaws: Task 3 broke ECB-256
+  identically (splices obeyed, silhouette visible), and Task 4's
+  GCM stops every attack at BOTH key sizes. Mode beats key length.
+
+Total benchmark wall time: 74 s (results/task5_speed.csv has every raw sample median).

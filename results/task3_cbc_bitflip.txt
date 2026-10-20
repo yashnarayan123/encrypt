@@ -1,0 +1,66 @@
+======================================================================
+CBC BIT-FLIPS under AES-128 (attacker never touches the key)
+======================================================================
+Attack A: IV flip turns stale seq=0011 into fresh seq=0099
+  captured wire IV : 53e0f1758e5d312c2351453c7312eaee
+  forged wire IV   : 53e0f1758e5d312c2351453c7312e2e6
+  ciphertext blocks identical: True (only the IV changed)
+  drone decrypts forged M0: 'DRONE01|SEQ=0099'
+  drone says: accepted=True reason='ok' parsed={'seq': 99, 'cmd': 'GOTO', 'param': 'ALT:30', 'auth': 'GCS'}
+  WHY ONLY BLOCK 0: Pi = AESdec(Ci) XOR C(i-1); the IV occurs
+  in P0's equation alone, so M1..M4 (incl. AUTH) are untouched.
+
+Attack B on LAND seq=30: flip 8 bytes of C2 (garbage M2,
+  controlled M3 tail; AUTH value bytes 0-7 intact)
+  drone decrypts forged wire to:
+      M0: 44524f4e4530317c5345513d30303330  'DRONE01|SEQ=0030'
+      M1: 434d443d4c414e442e2e2e2e2e2e2e2e  'CMD=LAND........'
+      M2: e1adebc71308ecc38f8211a07da8eef8  '����\x13\x08����\x11�}���'
+      M3: 415554483d4743532f2f2f2f2f2f2f2f  'AUTH=GCS////////'
+  M2 is garbage (ignored: LAND never reads PARAM); M3's AUTH
+  value field still 'AUTH=GCS' (only filler changed).
+  drone says: accepted=True reason='ok' parsed={'seq': 30, 'cmd': 'LAND', 'param': None, 'auth': 'GCS'}
+
+SAME flip on GOTO seq=31:
+  drone says: accepted=False reason="bad PARAM block '����������|.�\\x05O\\x1c'" parsed=None
+  GOTO must parse PARAM, so the garbled M2 kills it. The LAND /
+  GOTO difference is the ignored-field rule, measured live.
+
+BONUS: same flip on ECB LAND (chunk 2, ECB has no IV):
+  drone says: accepted=True reason='ok'
+  ECB damage is single-block (no chaining): only M2 garbles,
+  AUTH stays byte-identical -- ECB flips are surgical ANYWHERE.
+
+======================================================================
+CBC BIT-FLIPS under AES-256 (attacker never touches the key)
+======================================================================
+Attack A: IV flip turns stale seq=0011 into fresh seq=0099
+  captured wire IV : b192a437c65bdc2a22f1638a239d1a08
+  forged wire IV   : b192a437c65bdc2a22f1638a239d1200
+  ciphertext blocks identical: True (only the IV changed)
+  drone decrypts forged M0: 'DRONE01|SEQ=0099'
+  drone says: accepted=True reason='ok' parsed={'seq': 99, 'cmd': 'GOTO', 'param': 'ALT:30', 'auth': 'GCS'}
+  WHY ONLY BLOCK 0: Pi = AESdec(Ci) XOR C(i-1); the IV occurs
+  in P0's equation alone, so M1..M4 (incl. AUTH) are untouched.
+
+Attack B on LAND seq=30: flip 8 bytes of C2 (garbage M2,
+  controlled M3 tail; AUTH value bytes 0-7 intact)
+  drone decrypts forged wire to:
+      M0: 44524f4e4530317c5345513d30303330  'DRONE01|SEQ=0030'
+      M1: 434d443d4c414e442e2e2e2e2e2e2e2e  'CMD=LAND........'
+      M2: 79b57f911c7d9abf04c171a583e77afb  'y�\x7f�\x1c}��\x04�q���z�'
+      M3: 415554483d4743532f2f2f2f2f2f2f2f  'AUTH=GCS////////'
+  M2 is garbage (ignored: LAND never reads PARAM); M3's AUTH
+  value field still 'AUTH=GCS' (only filler changed).
+  drone says: accepted=True reason='ok' parsed={'seq': 30, 'cmd': 'LAND', 'param': None, 'auth': 'GCS'}
+
+SAME flip on GOTO seq=31:
+  drone says: accepted=False reason="bad PARAM block '���aE�3b�\\x19\\x1eiv\\\\�p'" parsed=None
+  GOTO must parse PARAM, so the garbled M2 kills it. The LAND /
+  GOTO difference is the ignored-field rule, measured live.
+
+BONUS: same flip on ECB LAND (chunk 2, ECB has no IV):
+  drone says: accepted=True reason='ok'
+  ECB damage is single-block (no chaining): only M2 garbles,
+  AUTH stays byte-identical -- ECB flips are surgical ANYWHERE.
+

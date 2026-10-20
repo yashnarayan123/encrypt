@@ -1,0 +1,198 @@
+======================================================================
+TASK 2 DEMO: encrypt/decrypt on the drone link (our own AES)
+Generated: Thu Oct 15 00:02:07 2026
+Keys are fixed so runs are comparable; CBC IVs are fresh random.
+======================================================================
+
+----------------------------------------------------------------------
+Config: ECB-128 (ECB, 128-bit key)
+----------------------------------------------------------------------
+  [Telemetry packet]
+  Plaintext (dict)  : {'msg_id': 1, 'seq': 42, 'lat': 515074000, 'lon': -1278000, 'alt_mm': 120000, 'battery_pct': 87, 'speed_cm_s': 1250, 'armed': True}
+  Plaintext (hex)   : 01002a1eb367d0ffec7fd00001d4c05704e201 (19 bytes)
+  Key (hex)         : 2b7e151628aed2a6abf7158809cf4f3c
+  IV                : (none - ECB needs no IV)
+  Encrypt time      : 0.260 ms
+  Ciphertext (32 bytes):
+      block 0: 18b1036d0d86632df5d02242fce9e753
+      block 1: f9c1eb7181eb63ea8023d93f25ed5499
+  Decrypted (dict)  : {'msg_id': 1, 'seq': 42, 'lat': 515074000, 'lon': -1278000, 'alt_mm': 120000, 'battery_pct': 87, 'speed_cm_s': 1250, 'armed': True}
+  Decrypted (hex)   : 01002a1eb367d0ffec7fd00001d4c05704e201
+  ROUNDTRIP OK
+
+  [Command packet]
+  Plaintext (ascii) : 'DRONE01|SEQ=0007CMD=GOTO........PARAM=ALT:30....AUTH=GCS........'
+  Plaintext (hex)   : 44524f4e4530317c5345513d30303037434d443d474f544f2e2e2e2e2e2e2e2e504152414d3d414c543a33302e2e2e2e415554483d4743532e2e2e2e2e2e2e2e (64 bytes)
+  Key (hex)         : 2b7e151628aed2a6abf7158809cf4f3c
+  IV                : (none - ECB needs no IV)
+  Encrypt time      : 0.503 ms
+  Ciphertext (80 bytes):
+      block 0: f2c9b739604e0a4ae60b217f570fa8a3
+      block 1: be9f76c7cb7c3d9b7f3e933be0731c7f
+      block 2: d21c4f059bdbbbf8e8efb81b4b2cdd40
+      block 3: d62595a281707d38417cffdc1c3c6c37
+      block 4: a254be88e037ddd9d79fb6411c3f9df8
+  Decrypted (ascii) : 'DRONE01|SEQ=0007CMD=GOTO........PARAM=ALT:30....AUTH=GCS........'
+  Decrypted (hex)   : 44524f4e4530317c5345513d30303037434d443d474f544f2e2e2e2e2e2e2e2e504152414d3d414c543a33302e2e2e2e415554483d4743532e2e2e2e2e2e2e2e
+  ROUNDTRIP OK
+
+----------------------------------------------------------------------
+Config: CBC-128 (CBC, 128-bit key)
+----------------------------------------------------------------------
+  [Telemetry packet]
+  Plaintext (dict)  : {'msg_id': 1, 'seq': 42, 'lat': 515074000, 'lon': -1278000, 'alt_mm': 120000, 'battery_pct': 87, 'speed_cm_s': 1250, 'armed': True}
+  Plaintext (hex)   : 01002a1eb367d0ffec7fd00001d4c05704e201 (19 bytes)
+  Key (hex)         : 2b7e151628aed2a6abf7158809cf4f3c
+  IV (hex, fresh)   : 75441408712c275f3a5292f5761e2d81
+  Encrypt time      : 0.222 ms
+  Ciphertext (48 bytes, IV || CT):
+      IV      : 75441408712c275f3a5292f5761e2d81
+      block 0: 53462cc40f6fa26ebbab73e5ffc30bce
+      block 1: f98905fa6e04bd7fc7efa16d6181ed15
+  Decrypted (dict)  : {'msg_id': 1, 'seq': 42, 'lat': 515074000, 'lon': -1278000, 'alt_mm': 120000, 'battery_pct': 87, 'speed_cm_s': 1250, 'armed': True}
+  Decrypted (hex)   : 01002a1eb367d0ffec7fd00001d4c05704e201
+  ROUNDTRIP OK
+
+  [Command packet]
+  Plaintext (ascii) : 'DRONE01|SEQ=0007CMD=GOTO........PARAM=ALT:30....AUTH=GCS........'
+  Plaintext (hex)   : 44524f4e4530317c5345513d30303037434d443d474f544f2e2e2e2e2e2e2e2e504152414d3d414c543a33302e2e2e2e415554483d4743532e2e2e2e2e2e2e2e (64 bytes)
+  Key (hex)         : 2b7e151628aed2a6abf7158809cf4f3c
+  IV (hex, fresh)   : 99f4afdf3d387eed7aa143c27f6d4754
+  Encrypt time      : 0.507 ms
+  Ciphertext (96 bytes, IV || CT):
+      IV      : 99f4afdf3d387eed7aa143c27f6d4754
+      block 0: b65810e4187a69343da3179fa0b99d57
+      block 1: 33763dbdf5a0f3d64adf9fd48de0feeb
+      block 2: 0848dfd26a3cc8ca756c736acf41e895
+      block 3: 47fdfd879aa2c12f552365d074ef7c37
+      block 4: 3ff27421f1a451933f20620636e05a46
+  Decrypted (ascii) : 'DRONE01|SEQ=0007CMD=GOTO........PARAM=ALT:30....AUTH=GCS........'
+  Decrypted (hex)   : 44524f4e4530317c5345513d30303037434d443d474f544f2e2e2e2e2e2e2e2e504152414d3d414c543a33302e2e2e2e415554483d4743532e2e2e2e2e2e2e2e
+  ROUNDTRIP OK
+
+----------------------------------------------------------------------
+Config: ECB-256 (ECB, 256-bit key)
+----------------------------------------------------------------------
+  [Telemetry packet]
+  Plaintext (dict)  : {'msg_id': 1, 'seq': 42, 'lat': 515074000, 'lon': -1278000, 'alt_mm': 120000, 'battery_pct': 87, 'speed_cm_s': 1250, 'armed': True}
+  Plaintext (hex)   : 01002a1eb367d0ffec7fd00001d4c05704e201 (19 bytes)
+  Key (hex)         : 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+  IV                : (none - ECB needs no IV)
+  Encrypt time      : 0.305 ms
+  Ciphertext (32 bytes):
+      block 0: 2b1239f52b5b537bb594345a5e75eb2c
+      block 1: 299d33e5825b393fcbd1917464562ba1
+  Decrypted (dict)  : {'msg_id': 1, 'seq': 42, 'lat': 515074000, 'lon': -1278000, 'alt_mm': 120000, 'battery_pct': 87, 'speed_cm_s': 1250, 'armed': True}
+  Decrypted (hex)   : 01002a1eb367d0ffec7fd00001d4c05704e201
+  ROUNDTRIP OK
+
+  [Command packet]
+  Plaintext (ascii) : 'DRONE01|SEQ=0007CMD=GOTO........PARAM=ALT:30....AUTH=GCS........'
+  Plaintext (hex)   : 44524f4e4530317c5345513d30303037434d443d474f544f2e2e2e2e2e2e2e2e504152414d3d414c543a33302e2e2e2e415554483d4743532e2e2e2e2e2e2e2e (64 bytes)
+  Key (hex)         : 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+  IV                : (none - ECB needs no IV)
+  Encrypt time      : 0.695 ms
+  Ciphertext (80 bytes):
+      block 0: 0aa385e155b12be4ba37d250dd682f06
+      block 1: 1e293f44e754fb8b1fbabe30660a1b25
+      block 2: b6b1273b60ffc9637e6e2e331581f38d
+      block 3: 5e4cb736ee96a1e6b08417b2ee189ce3
+      block 4: 9f3b7504926f8bd36e3118e903a4cd4a
+  Decrypted (ascii) : 'DRONE01|SEQ=0007CMD=GOTO........PARAM=ALT:30....AUTH=GCS........'
+  Decrypted (hex)   : 44524f4e4530317c5345513d30303037434d443d474f544f2e2e2e2e2e2e2e2e504152414d3d414c543a33302e2e2e2e415554483d4743532e2e2e2e2e2e2e2e
+  ROUNDTRIP OK
+
+----------------------------------------------------------------------
+Config: CBC-256 (CBC, 256-bit key)
+----------------------------------------------------------------------
+  [Telemetry packet]
+  Plaintext (dict)  : {'msg_id': 1, 'seq': 42, 'lat': 515074000, 'lon': -1278000, 'alt_mm': 120000, 'battery_pct': 87, 'speed_cm_s': 1250, 'armed': True}
+  Plaintext (hex)   : 01002a1eb367d0ffec7fd00001d4c05704e201 (19 bytes)
+  Key (hex)         : 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+  IV (hex, fresh)   : 7cb02a3c1c4a20b5d3f6113bd47fc0ab
+  Encrypt time      : 0.312 ms
+  Ciphertext (48 bytes, IV || CT):
+      IV      : 7cb02a3c1c4a20b5d3f6113bd47fc0ab
+      block 0: 9fd9882893d24de85757964a824fba45
+      block 1: f68dc47f07df52e5b5532d3fe15ee868
+  Decrypted (dict)  : {'msg_id': 1, 'seq': 42, 'lat': 515074000, 'lon': -1278000, 'alt_mm': 120000, 'battery_pct': 87, 'speed_cm_s': 1250, 'armed': True}
+  Decrypted (hex)   : 01002a1eb367d0ffec7fd00001d4c05704e201
+  ROUNDTRIP OK
+
+  [Command packet]
+  Plaintext (ascii) : 'DRONE01|SEQ=0007CMD=GOTO........PARAM=ALT:30....AUTH=GCS........'
+  Plaintext (hex)   : 44524f4e4530317c5345513d30303037434d443d474f544f2e2e2e2e2e2e2e2e504152414d3d414c543a33302e2e2e2e415554483d4743532e2e2e2e2e2e2e2e (64 bytes)
+  Key (hex)         : 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+  IV (hex, fresh)   : 67959a7cf423704952ed315fcf7d8cb7
+  Encrypt time      : 0.702 ms
+  Ciphertext (96 bytes, IV || CT):
+      IV      : 67959a7cf423704952ed315fcf7d8cb7
+      block 0: ccff163482c18bcd8c8d1a60ff724385
+      block 1: 3ccb0b82e73342612c613d020e81f11d
+      block 2: 5de35dcf9a3f23a5babc9bc0471dd258
+      block 3: 27df1172af0bfa314be4b9cd718771fa
+      block 4: f7eb1923972b1a234a53a02b2c5b801e
+  Decrypted (ascii) : 'DRONE01|SEQ=0007CMD=GOTO........PARAM=ALT:30....AUTH=GCS........'
+  Decrypted (hex)   : 44524f4e4530317c5345513d30303037434d443d474f544f2e2e2e2e2e2e2e2e504152414d3d414c543a33302e2e2e2e415554483d4743532e2e2e2e2e2e2e2e
+  ROUNDTRIP OK
+
+----------------------------------------------------------------------
+EXTRA DEMO 1: same message twice
+  Sending the identical command twice back-to-back.
+  Plaintext (ascii) : 'DRONE01|SEQ=0009CMD=ARM.........PARAM=..........AUTH=GCS........'
+
+  ECB-128, twice (no IV, deterministic):
+    first:
+      block 0: d2f851068735f864a174cdffc7f56d85
+      block 1: 706edaace0bd34f3ec1092c43c35a63e
+      block 2: 2fe941b55269e5527a99b5e2da8f012b
+      block 3: d62595a281707d38417cffdc1c3c6c37
+      block 4: a254be88e037ddd9d79fb6411c3f9df8
+    second:
+      block 0: d2f851068735f864a174cdffc7f56d85
+      block 1: 706edaace0bd34f3ec1092c43c35a63e
+      block 2: 2fe941b55269e5527a99b5e2da8f012b
+      block 3: d62595a281707d38417cffdc1c3c6c37
+      block 4: a254be88e037ddd9d79fb6411c3f9df8
+    identical ciphertext: True (ECB always repeats)
+
+  CBC-128, twice (fresh random IV each time):
+    first  IV: d008b284b72fef9d3bd40891b2c8c54e
+      block 0: fb496882be2c7c58122311b83c28e2c5
+      block 1: 3e650054328126c05eabcb02e947a3be
+      block 2: 7066e2df7449fc8aab481573c661d18c
+      block 3: 5e5a1d0735f2a4e3eb3313cbf4b66125
+      block 4: 64579a66a940a76b70483b0dadc01115
+    second IV: 5557547ff5e8e195124a233576b740ed
+      block 0: 80ff1663619d7858732959d54d1a31c8
+      block 1: 8bb4e060b113443fc4cc3b949aad028d
+      block 2: 3646ec098786545342ace84276997821
+      block 3: 54edb8138a51c94e102d9454bc74e53b
+      block 4: c84a0aecb4e2474f8b27877183a723fc
+    identical on wire: False (CBC differs because the IV differs)
+
+----------------------------------------------------------------------
+EXTRA DEMO 2: repeated blocks in one message
+  Message = the same 16-byte block 3 times (48 bytes).
+  NOTE: our modes add PKCS#7 padding, so a 4th padding block
+  (16 bytes of 0x10) appears; compare the FIRST THREE blocks.
+  Plaintext (hex)   : 4142434445464748494a4b4c4d4e4f504142434445464748494a4b4c4d4e4f504142434445464748494a4b4c4d4e4f50
+
+  ECB-128 ciphertext:
+    block 0: e49ba652b34d315058dc221fce11ce58
+    block 1: e49ba652b34d315058dc221fce11ce58
+    block 2: e49ba652b34d315058dc221fce11ce58
+    block 3: a254be88e037ddd9d79fb6411c3f9df8
+    first three blocks identical: True (pattern leaks!)
+
+  CBC-128 ciphertext:
+    IV: ae4885024e3b20ba616852d8cd02ff0e
+    block 0: cfc5af2bf2672832ce76d98083a31c1e
+    block 1: c72ee02ae54a6070cb546ae4deb2d6d4
+    block 2: 5a9a770f3f094182dcf32446b9e33c4f
+    block 3: 1fb594921ea3ca0c9782b798854489b2
+    any two of first three identical: False (chaining hides it)
+
+======================================================================
+END OF TASK 2 DEMO
+======================================================================

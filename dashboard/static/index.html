@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drone Link Security Demo — ECB / CBC / GCM</title>
+<style>
+  /* Light engineering-console theme: warm off-white page, white panels,
+     neutral borders, charcoal text, restrained blue accents. Red = rejected
+     or attack, green = accepted or successful attack, amber = jammed. */
+  :root {
+    --page: #f5f4f0;
+    --panel: #ffffff;
+    --border: #e0dcd1;
+    --text: #23211c;
+    --muted: #6f6a5e;
+    --accent: #1d5fbf;
+    --accent-soft: #e8effa;
+    --red: #b3261e;
+    --red-soft: #fbecea;
+    --green: #1e7e34;
+    --green-soft: #e9f4ec;
+    --amber: #9a6b12;
+    --amber-soft: #faf3df;
+    --radius: 8px;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--page); color: var(--text);
+    font-family: var(--sans); font-size: 14px; line-height: 1.45;
+  }
+  /* Top status bar */
+  header.topbar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    padding: 10px 18px; position: sticky; top: 0; z-index: 20;
+  }
+  header.topbar h1 { font-size: 16px; margin: 0 8px 0 0; white-space: nowrap; }
+  header.topbar h1 small { color: var(--muted); font-weight: normal; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .seg button {
+    border: 0; background: var(--panel); color: var(--text);
+    padding: 6px 12px; font-size: 13px; cursor: pointer; font-family: var(--sans);
+  }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button.active { background: var(--accent); color: #fff; }
+  .spacer { flex: 1; }
+  .pill {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; border: 1px solid var(--border);
+    background: var(--page); color: var(--muted); white-space: nowrap;
+  }
+  .pill.on-jam { background: var(--amber-soft); color: var(--amber); border-color: #e3cf9d; }
+  .pill.on-air { background: var(--green-soft); color: var(--green); border-color: #bcd9c3; }
+  button.action {
+    border: 1px solid var(--border); background: var(--panel); color: var(--text);
+    border-radius: var(--radius); padding: 7px 13px; font-size: 13px;
+    cursor: pointer; font-family: var(--sans);
+  }
+  button.action:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  button.action:disabled { opacity: 0.45; cursor: not-allowed; }
+  button.action.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.action.danger { border-color: #e0a49e; color: var(--red); }
+  button.action.danger:hover:not(:disabled) { background: var(--red-soft); color: var(--red); border-color: var(--red); }
+  /* Main grid: three balanced panels, stacking on narrow screens */
+  main { padding: 16px 18px 28px; max-width: 1500px; margin: 0 auto; }
+  .panels { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; align-items: start; }
+  @media (max-width: 1080px) { .panels { grid-template-columns: 1fr; } }
+  section.panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 14px 16px; min-width: 0;
+  }
+  section.panel h2 { font-size: 13px; margin: 0 0 4px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  section.panel h2 .who { color: var(--text); }
+  .hint { font-size: 12px; color: var(--muted); margin: 2px 0 10px; }
+  .btnrow { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .btnrow button.action { padding: 6px 10px; font-size: 12.5px; }
+  h3.sub { font-size: 12px; margin: 14px 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  /* 16-byte block chips: label above, hex below, colour from block bytes */
+  .chips { display: flex; flex-direction: column; gap: 5px; }
+  .chip {
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 8px; min-width: 0;
+  }
+  .chip .lab { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 0.03em; }
+  .chip .hex { font-family: var(--mono); font-size: 12.5px; word-break: break-all; color: var(--text); }
+  .chip .asc { font-family: var(--mono); font-size: 12px; color: var(--muted); word-break: break-all; }
+  .chip.changed { outline: 2px solid var(--red); outline-offset: 1px; }
+  .chip.spliced { outline: 2px dashed var(--amber); outline-offset: 1px; }
+  /* Recording list */
+  .reclist { display: flex; flex-direction: column; gap: 5px; max-height: 240px; overflow-y: auto; }
+  .rec {
+    border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px;
+    cursor: pointer; font-size: 12.5px; background: var(--panel); text-align: left;
+    font-family: var(--sans); color: var(--text); width: 100%;
+  }
+  .rec:hover { border-color: var(--accent); }
+  .rec.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .rec .prev { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+  .badge {
+    display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 7px;
+    border-radius: 999px; margin-left: 6px; vertical-align: 1px; white-space: nowrap;
+  }
+  .badge.ok { background: var(--green-soft); color: var(--green); }
+  .badge.no { background: var(--red-soft); color: var(--red); }
+  .badge.warn { background: var(--amber-soft); color: var(--amber); }
+  .badge.info { background: var(--accent-soft); color: var(--accent); }
+  /* Drone status + SVG */
+  .statusgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; font-size: 13px; margin-bottom: 8px; }
+  .statusgrid .k { color: var(--muted); }
+  .dronewrap { display: flex; gap: 12px; align-items: center; margin: 4px 0 8px; }
+  #dronesvg .rotor { transform-origin: center; transform-box: fill-box; }
+  #dronesvg.armed .rotor { animation: spin 0.5s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #dronebody { transition: transform 1.2s ease-in; }
+  #dronesvg.crashed #dronebody { transform: translateY(46px) rotate(24deg); }
+  #crashlabel { display: none; fill: var(--red); font: 700 13px sans-serif; }
+  #dronesvg.crashed #crashlabel { display: block; }
+  /* Receive log */
+  .log { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
+  .logline { border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 12.5px; }
+  .logline .reason { font-family: var(--mono); font-size: 11.5px; color: var(--muted); word-break: break-all; }
+  /* Matrix */
+  section.matrix { margin-top: 14px; }
+  table.matrix { border-collapse: collapse; width: 100%; font-size: 13px; }
+  table.matrix th, table.matrix td { border: 1px solid var(--border); padding: 7px 10px; text-align: center; }
+  table.matrix th { background: var(--page); font-size: 12px; color: var(--muted); }
+  table.matrix td:first-child, table.matrix th:first-child { text-align: left; font-weight: 600; }
+  td.cell-ok { background: var(--green-soft); color: var(--green); font-weight: 700; }
+  td.cell-no { background: var(--red-soft); color: var(--red); font-weight: 700; }
+  .matrixbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 10px 0 4px; }
+  #demostatus { font-size: 12.5px; color: var(--muted); }
+  /* Modal */
+  .modal { display: none; position: fixed; inset: 0; background: rgba(35,33,28,0.45); z-index: 50; padding: 24px; }
+  .modal.open { display: flex; align-items: center; justify-content: center; }
+  .modal .box { background: var(--panel); border-radius: 10px; padding: 16px; max-width: 960px; width: 100%; }
+  .modal img { width: 100%; border: 1px solid var(--border); border-radius: 6px; }
+  footer { color: var(--muted); font-size: 12px; padding: 0 18px 22px; max-width: 1500px; margin: 0 auto; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <h1>Drone Link Security Demo <small>ECB / CBC / GCM, live attacks</small></h1>
+  <div class="seg" id="modeseg" role="group" aria-label="encryption mode">
+    <button data-mode="ecb">ECB</button><button data-mode="cbc">CBC</button><button data-mode="gcm">GCM</button>
+  </div>
+  <div class="seg" id="bitseg" role="group" aria-label="key size">
+    <button data-bits="128">AES-128</button><button data-bits="256">AES-256</button>
+  </div>
+  <span class="spacer"></span>
+  <span class="pill on-air" id="linkpill">LINK LIVE</span>
+  <button class="action" id="jambtn">JAM: OFF</button>
+  <button class="action" id="resetbtn">RESET</button>
+</header>
+
+<main>
+  <div class="panels">
+
+    <section class="panel" aria-label="Ground station">
+      <h2><span class="who">Ground Station</span> — operator console (knows the key)</h2>
+      <div class="hint" id="seqline">Next sequence number: 1</div>
+      <div class="btnrow" id="gcsbtns">
+        <button class="action" data-cmd="ARM">ARM</button>
+        <button class="action" data-cmd="LAND">LAND</button>
+        <button class="action" data-cmd="GOTO">GOTO ALT:30</button>
+        <button class="action" data-cmd="RTL">RTL</button>
+        <button class="action" data-cmd="DISARM">DISARM</button>
+      </div>
+      <h3 class="sub">Plaintext command (4 blocks)</h3>
+      <div class="chips" id="plainview"><div class="hint">Press a command button to transmit.</div></div>
+      <h3 class="sub">Encrypted wire</h3>
+      <div class="chips" id="wireview"></div>
+    </section>
+
+    <section class="panel" aria-label="Attacker">
+      <h2><span class="who">Attacker</span> — packet workstation (never has the key)</h2>
+      <div class="hint">Sees wires only. Select a recording, then run an operation. Command labels come from watching the drone, never from decrypting.</div>
+      <h3 class="sub">Recorded wires</h3>
+      <div class="reclist" id="reclist"><div class="hint">No traffic recorded yet.</div></div>
+      <h3 class="sub">Operations on the selected wire</h3>
+      <div class="btnrow">
+        <button class="action danger" id="btn-replay">REPLAY</button>
+        <button class="action danger" id="btn-splice">SPLICE FORGED DISARM</button>
+        <button class="action danger" id="btn-ivflip">IV FLIP</button>
+        <button class="action danger" id="btn-blockflip">BLOCK FLIP</button>
+      </div>
+      <div class="hint" id="atkhint"></div>
+      <h3 class="sub">Forged wire inspector</h3>
+      <div class="chips" id="forgedview"><div class="hint">No forgery built yet. Red outline = bytes differ from the selected recording.</div></div>
+    </section>
+
+    <section class="panel" aria-label="Drone">
+      <h2><span class="who">Drone</span> — telemetry console (real receiver verdicts)</h2>
+      <div class="dronewrap">
+        <svg id="dronesvg" width="120" height="96" viewBox="0 0 120 96" aria-label="drone state icon">
+          <g id="dronebody">
+            <line x1="60" y1="40" x2="24" y2="22" stroke="#3a372f" stroke-width="3"/>
+            <line x1="60" y1="40" x2="96" y2="22" stroke="#3a372f" stroke-width="3"/>
+            <line x1="60" y1="40" x2="24" y2="58" stroke="#3a372f" stroke-width="3"/>
+            <line x1="60" y1="40" x2="96" y2="58" stroke="#3a372f" stroke-width="3"/>
+            <g class="rotor"><ellipse cx="24" cy="22" rx="12" ry="3.5" fill="#8a8474"/><circle cx="24" cy="22" r="3" fill="#3a372f"/></g>
+            <g class="rotor"><ellipse cx="96" cy="22" rx="12" ry="3.5" fill="#8a8474"/><circle cx="96" cy="22" r="3" fill="#3a372f"/></g>
+            <g class="rotor"><ellipse cx="24" cy="58" rx="12" ry="3.5" fill="#8a8474"/><circle cx="24" cy="58" r="3" fill="#3a372f"/></g>
+            <g class="rotor"><ellipse cx="96" cy="58" rx="12" ry="3.5" fill="#8a8474"/><circle cx="96" cy="58" r="3" fill="#3a372f"/></g>
+            <rect x="48" y="32" width="24" height="16" rx="3" fill="#3a372f"/>
+            <line x1="52" y1="48" x2="52" y2="62" stroke="#3a372f" stroke-width="2"/>
+            <line x1="68" y1="48" x2="68" y2="62" stroke="#3a372f" stroke-width="2"/>
+            <line x1="46" y1="62" x2="74" y2="62" stroke="#3a372f" stroke-width="2"/>
+          </g>
+          <text id="crashlabel" x="60" y="88" text-anchor="middle">CRASH</text>
+        </svg>
+        <div class="statusgrid" id="dronestat"></div>
+      </div>
+      <h3 class="sub">Receive log (newest first)</h3>
+      <div class="log" id="recvlog"><div class="hint">Nothing received yet.</div></div>
+    </section>
+
+  </div>
+
+  <section class="panel matrix" aria-label="Live attack matrix">
+    <h2><span class="who">Live attack matrix</span> — SUCCESS means the forged command was obeyed</h2>
+    <div class="hint">Cells fill only from real receiver verdicts as you attack. Blank = not attempted yet.</div>
+    <table class="matrix" id="matrixtab"></table>
+    <div class="matrixbar">
+      <button class="action primary" id="btn-guided">RUN GUIDED DEMO</button>
+      <button class="action" id="btn-image">IMAGE LEAK</button>
+      <span id="demostatus"></span>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="imgmodal" role="dialog" aria-label="ECB image leak comparison">
+  <div class="box">
+    <h2 style="margin-top:0">ECB leaks shapes, CBC does not <small style="color:var(--muted);font-weight:normal">(Task 3, same AES)</small></h2>
+    <img src="/results/img_comparison.png" alt="Original, ECB-encrypted and CBC-encrypted drone picture">
+    <div class="hint">ECB: 69 distinct 16-byte blocks (silhouette visible). CBC: 3073/3073 unique (noise). Same key.</div>
+    <button class="action" id="modalclose">CLOSE</button>
+  </div>
+</div>
+
+<footer>Demo layer only: every ACCEPTED/REJECTED comes from the real receive path
+(<span style="font-family:var(--mono)">attacks.victim.drone_receive</span> for ECB/CBC,
+<span style="font-family:var(--mono)">link.secure_link.secure_receive</span> for GCM).
+The drone picture here visualises already-accepted commands; it decides nothing.</footer>
+
+<script>
+"use strict";
+/* Plain page logic: fetch JSON snapshots, re-render everything from them.
+   No crypto here, no key ever arrives (the server never sends it). */
+let SNAP = null, SELECTED = null, GUIDED_RUNNING = false, LAST_FORGED = null;
+
+const MODES = ["ecb", "cbc", "gcm"];
+const ROWS = ["ECB-128", "ECB-256", "CBC-128", "CBC-256", "GCM-128", "GCM-256"];
+const COLS = [["splice", "splice"], ["iv_flip", "IV flip"], ["block_flip", "block flip"], ["replay", "replay"]];
+
+function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+
+/* Subtle chip colour from block bytes so equal ECB blocks share a colour. */
+function chipColor(hex) {
+  let h = 0;
+  for (let i = 0; i < hex.length; i += 2) h = (h + parseInt(hex.substr(i, 2), 16)) % 360;
+  return "background:hsl(" + h + ",32%,93%);border-color:hsl(" + h + ",22%,78%)";
+}
+
+function chipHtml(label, hex, asc, extra) {
+  return '<div class="chip' + (extra ? " " + extra : "") + '" style="' + chipColor(hex) + '">' +
+    '<div class="lab">' + esc(label) + "</div>" +
+    '<div class="hex">' + esc(hex) + "</div>" +
+    (asc !== null && asc !== undefined ? '<div class="asc">' + esc(asc) + "</div>" : "") +
+    "</div>";
+}
+
+async function api(path, body) {
+  const r = await fetch(path, {method: "POST", headers: {"Content-Type": "application/json"},
+    body: body ? JSON.stringify(body) : "{}"});
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || ("HTTP " + r.status));
+  return data;
+}
+
+async function refresh() {
+  const r = await fetch("/api/state");
+  SNAP = await r.json();
+  render();
+}
+
+/* 16-byte-chunk diff of forged vs reference wire for red outlines. */
+function diffChunks(forgedHex, refHex) {
+  const out = [];
+  for (let i = 0; i < forgedHex.length; i += 32) {
+    out.push(forgedHex.substr(i, 32) !== (refHex || "").substr(i, 32) ? "changed" : "");
+  }
+  return out;
+}
+
+function render() {
+  const s = SNAP;
+  document.querySelectorAll("#modeseg button").forEach(b =>
+    b.classList.toggle("active", b.dataset.mode === s.mode));
+  document.querySelectorAll("#bitseg button").forEach(b =>
+    b.classList.toggle("active", +b.dataset.bits === s.bits));
+  const pill = document.getElementById("linkpill");
+  pill.textContent = s.jam ? "LINK JAMMED" : "LINK LIVE";
+  pill.className = "pill " + (s.jam ? "on-jam" : "on-air");
+  const jb = document.getElementById("jambtn");
+  jb.textContent = s.jam ? "JAM: ON" : "JAM: OFF";
+  document.getElementById("seqline").textContent = "Next sequence number: " + s.seq_next +
+    (s.jam ? "  (jammed: sends record but do not deliver)" : "");
+
+  /* Ground station */
+  if (s.gcs_view) {
+    const names = ["header", "CMD", "PARAM", "AUTH"];
+    document.getElementById("plainview").innerHTML = s.gcs_view.plain_blocks.map((b, i) =>
+      chipHtml(names[i] + "  ·  " + s.gcs_view.cmd + " seq " + s.gcs_view.seq, "", b)).join("");
+    document.getElementById("wireview").innerHTML = s.gcs_view.wire_parts.map(p =>
+      chipHtml(p.label, p.hex, null)).join("");
+  }
+
+  /* Attacker recordings */
+  const rl = document.getElementById("reclist");
+  if (!s.recordings.length) {
+    rl.innerHTML = '<div class="hint">No traffic recorded yet.</div>';
+  } else {
+    rl.innerHTML = "";
+    s.recordings.forEach((r, i) => {
+      const b = document.createElement("button");
+      b.className = "rec" + (i === SELECTED ? " selected" : "");
+      b.innerHTML = "<b>R" + r.n + "</b> · " + esc(r.label) +
+        '<span class="badge ' + (r.delivered ? "info" : "warn") + '">' +
+        (r.delivered ? "DELIVERED" : "JAMMED") + "</span><br>" +
+        '<span class="prev">' + esc(r.wire_hex.slice(0, 32)) + "…</span>";
+      b.onclick = () => { SELECTED = i; LAST_FORGED = null; render(); };
+      rl.appendChild(b);
+    });
+  }
+  const hasSel = SELECTED !== null && s.recordings[SELECTED];
+  const hint = [];
+  document.getElementById("btn-replay").disabled = !hasSel;
+  document.getElementById("btn-blockflip").disabled = !hasSel;
+  if (!hasSel) hint.push("Select a recording first (replay / flips act on it).");
+  const sp = document.getElementById("btn-splice");
+  sp.disabled = !s.has_disarm_donor;
+  if (!s.has_disarm_donor) hint.push("Splice needs an observed DISARM: deliver (don't jam) a DISARM the drone obeys, then jam a newer message for a fresh header.");
+  const iv = document.getElementById("btn-ivflip");
+  iv.disabled = !hasSel || s.mode === "ecb";
+  if (s.mode === "ecb") hint.push("ECB has no IV — nothing to flip (cell stays blank).");
+  else if (!hasSel) hint.push("Select a recording first (replay / flips act on it).");
+  document.getElementById("atkhint").textContent = hint.join(" ");
+
+  /* Forged inspector */
+  const fv = document.getElementById("forgedview");
+  if (LAST_FORGED && LAST_FORGED.wire_hex) {
+    const ref = hasSel ? s.recordings[SELECTED].wire_hex : "";
+    const marks = diffChunks(LAST_FORGED.wire_hex, ref);
+    let html = "";
+    const hex = LAST_FORGED.wire_hex;
+    for (let i = 0; i < hex.length; i += 32) {
+      html += chipHtml("chunk " + (i / 32) + (LAST_FORGED.forged_from && i === 0 ? " · " + LAST_FORGED.forged_from : ""),
+        hex.substr(i, 32), null, marks[i / 32]);
+    }
+    if (LAST_FORGED.forged_from) html = '<div class="hint">' + esc(LAST_FORGED.forged_from) + "</div>" + html;
+    fv.innerHTML = html;
+  }
+
+  /* Drone */
+  const d = s.drone;
+  document.getElementById("dronestat").innerHTML =
+    '<div><span class="k">State </span>' + (d.crashed ? '<span class="badge no">CRASHED</span>'
+      : d.armed ? '<span class="badge ok">ARMED</span>' : '<span class="badge">DISARMED</span>') + "</div>" +
+    "<div><span class='k'>Altitude </span>" + d.altitude + " m</div>" +
+    "<div><span class='k'>Last cmd </span>" + esc(d.last_cmd || "—") + "</div>" +
+    "<div><span class='k'>Last seq </span>" + (d.last_seq === null ? "—" : d.last_seq) + "</div>" +
+    (d.note ? "<div><span class='k'>Note </span>" + esc(d.note) + "</div><div></div>" : "");
+  const svg = document.getElementById("dronesvg");
+  svg.classList.toggle("armed", !!d.armed && !d.crashed);
+  svg.classList.toggle("crashed", !!d.crashed);
+
+  const log = document.getElementById("recvlog");
+  if (!s.log.length) log.innerHTML = '<div class="hint">Nothing received yet.</div>';
+  else log.innerHTML = s.log.map(e => {
+    const badge = e.accepted === null ? '<span class="badge warn">JAMMED</span>'
+      : e.accepted ? '<span class="badge ok">ACCEPTED</span>' : '<span class="badge no">REJECTED</span>';
+    let extra = "";
+    if (e.plain_blocks) extra = '<div class="chips" style="margin-top:4px">' +
+      e.plain_blocks.map((b, i) => chipHtml("M" + i, "", b)).join("") + "</div>";
+    else if (e.auth_note) extra = '<div class="reason">' + esc(e.auth_note) + "</div>";
+    return '<div class="logline"><b>' + esc(e.source) + "</b> " + badge +
+      '<div class="reason">' + esc(e.reason) + "</div>" + extra + "</div>";
+  }).join("");
+
+  /* Matrix */
+  let html = "<tr><th></th>" + COLS.map(c => "<th>" + c[1] + "</th>").join("") + "</tr>";
+  ROWS.forEach(row => {
+    html += "<tr><td>" + row + "</td>";
+    COLS.forEach(c => {
+      const v = s.matrix[row + ":" + c[0]];
+      if (!v) html += "<td></td>";
+      else html += '<td class="' + (v === "SUCCESS" ? "cell-ok" : "cell-no") + '">' + v + "</td>";
+    });
+    html += "</tr>";
+  });
+  document.getElementById("matrixtab").innerHTML = html;
+}
+
+/* Actions */
+document.querySelectorAll("#gcsbtns button").forEach(b =>
+  b.onclick = async () => { SNAP = await api("/api/send", {cmd: b.dataset.cmd}); render(); });
+document.querySelectorAll("#modeseg button").forEach(b =>
+  b.onclick = async () => { SELECTED = null; LAST_FORGED = null; SNAP = await api("/api/mode", {mode: b.dataset.mode, bits: SNAP.bits}); render(); });
+document.querySelectorAll("#bitseg button").forEach(b =>
+  b.onclick = async () => { SELECTED = null; LAST_FORGED = null; SNAP = await api("/api/mode", {mode: SNAP.mode, bits: +b.dataset.bits}); render(); });
+document.getElementById("jambtn").onclick = async () => { SNAP = await api("/api/jam", {on: !SNAP.jam}); render(); };
+document.getElementById("resetbtn").onclick = async () => { SELECTED = null; LAST_FORGED = null; SNAP = await api("/api/reset", {}); render(); };
+
+async function attack(path, body, what) {
+  try {
+    const data = await api(path, body || {});
+    LAST_FORGED = data.result && data.result.wire_hex ? data.result : null;
+    SNAP = data; render();
+  } catch (e) { document.getElementById("atkhint").textContent = what + " failed: " + e.message; }
+}
+document.getElementById("btn-replay").onclick = () => attack("/api/replay", {idx: SELECTED}, "Replay");
+document.getElementById("btn-splice").onclick = () => attack("/api/splice", {}, "Splice");
+document.getElementById("btn-ivflip").onclick = () => attack("/api/ivflip", {idx: SELECTED}, "IV flip");
+document.getElementById("btn-blockflip").onclick = () => attack("/api/blockflip", {idx: SELECTED}, "Block flip");
+
+/* Guided demo: scripted story for the current mode, one click, short pauses. */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function say(t) { document.getElementById("demostatus").textContent = t; }
+document.getElementById("btn-guided").onclick = async () => {
+  if (GUIDED_RUNNING) return;
+  GUIDED_RUNNING = true;
+  document.getElementById("btn-guided").disabled = true;
+  try {
+    say("Resetting session…");
+    SNAP = await api("/api/reset", {}); SELECTED = null; render(); await sleep(500);
+    for (const cmd of ["ARM", "GOTO", "LAND", "DISARM"]) {
+      say("GCS sends " + cmd + " (delivered)…");
+      SNAP = await api("/api/send", {cmd}); render(); await sleep(450);
+    }
+    say("JAM on — next wires are recorded but never delivered…");
+    SNAP = await api("/api/jam", {on: true}); render(); await sleep(450);
+    SNAP = await api("/api/send", {cmd: "RTL"}); render(); await sleep(400);
+    SNAP = await api("/api/send", {cmd: "LAND"}); render(); await sleep(400);
+    SNAP = await api("/api/send", {cmd: "GOTO"}); render(); await sleep(450);
+    const landAll = SNAP.recordings.map((r, i) => i)
+      .filter(i => /LAND/.test(SNAP.recordings[i].label || ""));
+    const ivIdx = landAll.length ? landAll[0] : 2;   // delivered LAND: fresh rewrite
+    const blkIdx = landAll.length ? landAll[landAll.length - 1] : 2;  // jammed LAND: fresh seq
+    say("BLOCK FLIP on the jammed LAND (fresh seq, garbled PARAM)…");
+    SNAP = await api("/api/blockflip", {idx: blkIdx}); render();
+    LAST_FORGED = SNAP.result && SNAP.result.wire_hex ? SNAP.result : null; render();
+    await sleep(700);
+    say("SPLICE: newest (jammed) header + observed DISARM body…");
+    SNAP = await api("/api/splice", {}); render();
+    LAST_FORGED = SNAP.result && SNAP.result.wire_hex ? SNAP.result : null; render();
+    await sleep(700);
+    if (SNAP.mode !== "ecb") {
+      say("IV FLIP: rewriting the seq digits…");
+      SNAP = await api("/api/ivflip", {idx: ivIdx}); render();
+      LAST_FORGED = SNAP.result && SNAP.result.wire_hex ? SNAP.result : null; render();
+      await sleep(700);
+    } else say("ECB has no IV — skipping IV flip (blank cell)…");
+    say("REPLAY of the oldest wire (stale seq)…");
+    SNAP = await api("/api/replay", {idx: 0}); render(); await sleep(700);
+    say("JAM off. Row complete — compare the matrix.");
+    SNAP = await api("/api/jam", {on: false}); render();
+  } catch (e) { say("Demo stopped: " + e.message); }
+  GUIDED_RUNNING = false;
+  document.getElementById("btn-guided").disabled = false;
+};
+
+/* Image modal */
+document.getElementById("btn-image").onclick = () =>
+  document.getElementById("imgmodal").classList.add("open");
+document.getElementById("modalclose").onclick = () =>
+  document.getElementById("imgmodal").classList.remove("open");
+document.getElementById("imgmodal").onclick = e => {
+  if (e.target.id === "imgmodal") e.target.classList.remove("open");
+};
+
+refresh().catch(e => { document.body.insertAdjacentHTML("afterbegin",
+  "<p style='color:red;padding:10px'>Cannot reach the server API: " + esc(e.message) + "</p>"); });
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+DEFENSE MATRIX (attacker outcome, all cells from live runs)
+Attack          | ECB         | CBC         | GCM
+----------------+-------------+-------------+----------
+pattern leak    | SUCCESS     | FAILED      | FAILED  
+cut-and-paste   | SUCCESS     | FAILED      | FAILED  
+IV/nonce flip   | N/A (no IV) | SUCCESS     | FAILED  
+block flip      | SUCCESS     | SUCCESS     | FAILED  
+replay (stale)  | FAILED      | FAILED      | FAILED  
+========================================================================
+Read: ECB falls to everything; CBC hides patterns and kills
+splices but stays malleable; GCM fails EVERY attack above --
+tampering is caught by the tag, replay by the seq rule.
